@@ -4,12 +4,13 @@ import MapView, { Polyline, Marker } from 'react-native-maps';
 import { Text, View } from '@/components/Themed';
 import { LocationService } from '@/services/LocationService';
 import { TrackingSession } from '@/types/location';
-import { calculateMapRegion } from '@/utils/heatmapUtils';
+import { calculateMapRegion, convertToPitchCoordinates } from '@/utils/heatmapUtils';
 
 export default function TrackingLinesScreen() {
   const [isTracking, setIsTracking] = useState(false);
   const [currentSession, setCurrentSession] = useState<TrackingSession | null>(null);
   const [locationService] = useState(() => LocationService.getInstance());
+  const [isPitchMode, setIsPitchMode] = useState(true);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -38,20 +39,21 @@ export default function TrackingLinesScreen() {
     Alert.alert('Success', 'GPS tracking stopped and session saved!');
   };
 
-  const coordinates = currentSession?.coordinates || [];
-  const mapRegion = calculateMapRegion(coordinates);
+  const rawCoordinates = currentSession?.coordinates || [];
+  const coordinates = isPitchMode ? convertToPitchCoordinates(rawCoordinates) : rawCoordinates;
+  const mapRegion = calculateMapRegion(coordinates, isPitchMode);
 
   return (
     <View style={styles.container}>
       <MapView style={styles.map} region={mapRegion}>
-        {coordinates.length > 1 && (
+        {coordinates.length >= 1 && (
           <Polyline
             coordinates={coordinates.map(coord => ({
               latitude: coord.latitude,
               longitude: coord.longitude,
             }))}
             strokeColor="#007AFF"
-            strokeWidth={3}
+            strokeWidth={5}
           />
         )}
         {coordinates.length > 0 && (
@@ -88,6 +90,15 @@ export default function TrackingLinesScreen() {
           </Text>
         </TouchableOpacity>
         
+        <TouchableOpacity
+          style={styles.modeButton}
+          onPress={() => setIsPitchMode(!isPitchMode)}
+        >
+          <Text style={styles.modeButtonText}>
+            {isPitchMode ? 'Pitch Mode' : 'GPS Mode'}
+          </Text>
+        </TouchableOpacity>
+
         {currentSession && (
           <View style={styles.stats}>
             <Text style={styles.statsText}>
@@ -143,5 +154,17 @@ const styles = StyleSheet.create({
   statsText: {
     fontSize: 14,
     color: '#666',
+  },
+  modeButton: {
+    backgroundColor: '#FF9500',
+    padding: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  modeButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });

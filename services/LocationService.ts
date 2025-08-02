@@ -45,8 +45,8 @@ export class LocationService {
       this.locationSubscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.BestForNavigation,
-          timeInterval: 1000,
-          distanceInterval: 1,
+          timeInterval: 500,
+          distanceInterval: 0.5,
         },
         (location) => {
           if (this.currentSession) {

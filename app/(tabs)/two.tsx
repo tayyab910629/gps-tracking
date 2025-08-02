@@ -4,16 +4,24 @@ import MapView, { Circle } from 'react-native-maps';
 import { Text, View } from '@/components/Themed';
 import { LocationService } from '@/services/LocationService';
 import { TrackingSession } from '@/types/location';
-import { generateHeatmapData, calculateMapRegion } from '@/utils/heatmapUtils';
+import { generateHeatmapData, calculateMapRegion, convertToPitchCoordinates } from '@/utils/heatmapUtils';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function HeatMapScreen() {
   const [sessions, setSessions] = useState<TrackingSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<TrackingSession | null>(null);
   const [locationService] = useState(() => LocationService.getInstance());
+  const [isPitchMode, setIsPitchMode] = useState(true);
 
   useEffect(() => {
     loadSessions();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadSessions();
+    }, [])
+  );
 
   const loadSessions = async () => {
     const allSessions = await locationService.getAllSessions();
@@ -43,9 +51,10 @@ export default function HeatMapScreen() {
     );
   };
 
-  const coordinates = selectedSession?.coordinates || [];
+  const rawCoordinates = selectedSession?.coordinates || [];
+  const coordinates = isPitchMode ? convertToPitchCoordinates(rawCoordinates) : rawCoordinates;
   const heatmapData = generateHeatmapData(coordinates);
-  const mapRegion = calculateMapRegion(coordinates);
+  const mapRegion = calculateMapRegion(coordinates, isPitchMode);
 
   return (
     <View style={styles.container}>
@@ -67,6 +76,15 @@ export default function HeatMapScreen() {
 
       <View style={styles.controls}>
         <Text style={styles.title}>Heat Map</Text>
+        
+        <TouchableOpacity
+          style={styles.modeButton}
+          onPress={() => setIsPitchMode(!isPitchMode)}
+        >
+          <Text style={styles.modeButtonText}>
+            {isPitchMode ? 'Pitch Mode' : 'GPS Mode'}
+          </Text>
+        </TouchableOpacity>
         
         {sessions.length > 0 ? (
           <>
@@ -202,5 +220,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
+  },
+  modeButton: {
+    backgroundColor: '#FF9500',
+    padding: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  modeButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });
