@@ -39,13 +39,36 @@ export function generateHeatmapData(coordinates: Coordinate[]): HeatmapPoint[] {
   return heatmapPoints;
 }
 
-export function calculateMapRegion(coordinates: Coordinate[]) {
+const PITCH_LENGTH = 100;
+const PITCH_WIDTH = 64;
+
+export function convertToPitchCoordinates(
+  coordinates: Coordinate[], 
+  pitchCenter?: { latitude: number; longitude: number }
+): Coordinate[] {
+  if (coordinates.length === 0) return [];
+  
+  const referencePoint = pitchCenter || coordinates[0];
+  
+  return coordinates.map(coord => {
+    const deltaLat = (coord.latitude - referencePoint.latitude) * 111000;
+    const deltaLng = (coord.longitude - referencePoint.longitude) * 111000 * Math.cos(referencePoint.latitude * Math.PI / 180);
+    
+    return {
+      latitude: referencePoint.latitude + (deltaLat / 111000) * (PITCH_LENGTH / 100),
+      longitude: referencePoint.longitude + (deltaLng / 111000) * (PITCH_WIDTH / 100),
+      timestamp: coord.timestamp
+    };
+  });
+}
+
+export function calculateMapRegion(coordinates: Coordinate[], isPitchMode = false) {
   if (coordinates.length === 0) {
     return {
-      latitude: 37.78825,
-      longitude: -122.4324,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
+      latitude: isPitchMode ? 0 : 37.78825,
+      longitude: isPitchMode ? 0 : -122.4324,
+      latitudeDelta: isPitchMode ? 0.002 : 0.01,
+      longitudeDelta: isPitchMode ? 0.002 : 0.01,
     };
   }
 
@@ -57,8 +80,8 @@ export function calculateMapRegion(coordinates: Coordinate[]) {
   const minLng = Math.min(...longitudes);
   const maxLng = Math.max(...longitudes);
   
-  const latDelta = Math.max(maxLat - minLat, 0.01) * 1.2; // Add 20% padding
-  const lngDelta = Math.max(maxLng - minLng, 0.01) * 1.2;
+  const latDelta = Math.max(maxLat - minLat, isPitchMode ? 0.002 : 0.01) * 1.2;
+  const lngDelta = Math.max(maxLng - minLng, isPitchMode ? 0.002 : 0.01) * 1.2;
   
   return {
     latitude: (minLat + maxLat) / 2,
